@@ -72,7 +72,3 @@
 - **DNS:** point to Pi-hole for ad-blocking.
 - Optional: Enable IPS/IDS (Suricata) if needed.
 
----
-
-**Tip:** Keep a copy of this runbook and every config file in Git.
-Next chapter will cover VM provisioning (Pi-hole, Home Assistant, etc.).
