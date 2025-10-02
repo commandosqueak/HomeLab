@@ -80,7 +80,7 @@
   - **Homebox** (http://192.168.8.180:7745).
   - **LanguageTool** (http://192.168.8.180:8010) — extension set to “Local server” (remote routing TBD).
 - Obsidian plugins installed: Tasks, Editor Width Slider, Beautitab, Callout Manager, Templater, Dataview, Advanced Tables, Calendar, Kanban (installed), Excalidraw.
-- Finished setting up git desktop, online and used my obsidian vault as my repo
+- Finished setting up git desktop, online and used my obsidian vault as my repo.
 
 ### Notes
 - Proxmox Summary still shows “guest agent not running” on `apps` — install `qemu-guest-agent` later.
