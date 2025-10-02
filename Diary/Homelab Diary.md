@@ -71,31 +71,39 @@
 
 ## 2025-10-02
 ### Progress
-- SSH working to `apps (200)` via MobaXterm as user **ellie** (password auth for now).
-- Deployed containers:
-  - **Portainer** (https://192.168.8.180:9443) — fixed environment to **Docker / local (unix:///var/run/docker.sock)**.
-  - **Heimdall** (http://192.168.8.180:8080).
-  - **Linkding** (http://192.168.8.180:9090) — superuser defaults set via compose; changed after first login.
-  - **Uptime Kuma** (http://192.168.8.180:3001).
-  - **Homebox** (http://192.168.8.180:7745).
-  - **LanguageTool** (http://192.168.8.180:8010) — extension set to “Local server” (remote routing TBD).
-- Obsidian plugins installed: Tasks, Editor Width Slider, Beautitab, Callout Manager, Templater, Dataview, Advanced Tables, Calendar, Kanban (installed), Excalidraw.
-- Finished setting up git desktop, online and used my obsidian vault as my repo.
+- ✅ SSH into `apps (200)` as **ellie** via MobaXterm; copy/paste sorted.
+- ✅ Installed **qemu-guest-agent** on `apps` (Proxmox now shows IP).
+- ✅ Deployed containers:
+  - Portainer (fixed env to **Docker local** via `/var/run/docker.sock`)
+  - Heimdall
+  - Linkding (set superuser via env; changed password after login)
+  - Uptime Kuma
+  - Homebox
+  - LanguageTool (API up on :8010)
+- ✅ Obsidian vault is now the **GitHub repo**; committed & pushed changes.
+- ✅ Added README seed files so folders show on GitHub.
 
 ### Notes
-- Proxmox Summary still shows “guest agent not running” on `apps` — install `qemu-guest-agent` later.
-- `apps` VM currently on **DHCP** (192.168.8.180). Will switch to **10.20.10.20** after OPNsense is live.
-- LanguageTool browser extension doesn’t take remote IP in “Local server” mode; will use SSH tunnel or Traefik + custom URL later.
-- All service passwords stored in **Bitwarden Cloud**; planning **Vaultwarden** self-hosted for lab.
+- `apps` currently on **DHCP 192.168.8.180**; will become **10.20.10.20** after OPNsense.
+- LanguageTool extension “Local server” wants **localhost**; will tunnel or switch to Traefik later.
+- Git/GitHub: Windows is case-insensitive; GitHub isn’t. Folder case (`Docs` vs `docs`) needs a two-step rename to reflect online.
 
-### Next Steps
-- [ ] Install **qemu-guest-agent** on `apps` (and other VMs).
-- [ ] Stand up **Vaultwarden** (self-hosted Bitwarden) on `apps` (port 8081 for now).
-- [ ] Prepare **Traefik** (after OPNsense + static IP) for HTTPS + pretty hostnames.
-- [ ] Set **static IP** for `apps` → `10.20.10.20` once OPNsense is in place.
-- [ ] Add DNS A-records in Pi-hole/OPNsense for services (e.g., `portainer.container.home.lab`).
-- [ ] Plan **backups** for stack volumes (NAS target; later cloud copy).
-- [ ] Switch SSH to **key-based auth** and disable password login once stable.
-- [ ] (Optional) DuckDNS updater container if DDNS not handled on OPNsense.
+### Issues / Gotchas
+- Initial Portainer wizard picked Podman → snapshot error; removed Podman env, added **Docker → Local**.
+- GitHub Desktop kept stale `origin` after remote deletion → removed remote, republished.
+- Empty folders don’t show on GitHub → added `README.md` in each.
 
+### Next Steps (tomorrow)
+- [ ] Rename `Docs → docs` and subfolders properly (two-step rename: `Docs → docs_tmp → docs`), then commit/push.
+- [ ] Move/runbooks into `docs/runbook/` (Portainer, Heimdall, Linkding, Kuma, Homebox, LT, Vaultwarden).
+- [ ] Add `docs/runbook/README.md` index and update links if casing changed.
+- [ ] (Optional quick win) Deploy **Vaultwarden** on port 8081 (compose ready).
+- [ ] Prepare **Traefik** plan (after OPNsense): HTTPS + hostnames.
+- [ ] Post-network: set static IPs + Pi-hole/OPNsense DNS A-records for services.
+- [ ] Later hardening: SSH keys everywhere; disable password auth.
+
+### Tiny Wins to Celebrate
+- Six containers live in one evening 🎉
+- Repo + Obsidian finally in sync.
+- Guest agent installed—no more “what’s my IP?” guessing.
 
