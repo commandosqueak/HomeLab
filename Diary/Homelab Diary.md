@@ -107,3 +107,32 @@
 - Repo + Obsidian finally in sync.
 - Guest agent installed—no more “what’s my IP?” guessing.
 
+
+# 2025-10-03
+
+## Progress
+- **Pi-hole (CT 230):** Installed and working. Wired to **Unbound (recursive)** on `127.0.0.1#5335`. Pi-hole DNSSEC disabled (Unbound validates). Gravity updated.
+- **Home Assistant (VM 220):** Created (`homeassistant`, 2 vCPU, 6 GB RAM, 100 GB). Onboarding in progress; migration from Pi planned via full backup.
+- **DuckDNS:** Up and running for dynamic DNS.
+- **WireGuard (CT 233):** Created (unprivileged, TUN+keyctl). `wg0` configured; **WGDashboard** installed and login fixed. Dashboard on `http://192.168.8.184:10086` (LAN-only).
+- **Passwords:** Stored in Bitwarden (cloud) for now; plan to self-host Vaultwarden later.
+
+## Notes
+- WGDashboard password issue was INI parsing—symbols can be problematic. Using a strong password without `#` or `;` works reliably.
+- No peers yet; add **phone peer (10.6.0.2/32)** via dashboard when ready.
+- Keep dashboard LAN-only. Do **not** port-forward 10086.
+
+## Next Steps (tomorrow / weekend)
+- OPNsense prep: buy/install 2nd NIC, then install OPNsense.
+- Move services to target subnets once VLANs exist:
+  - Pi-hole → **10.20.10.21** (VLAN 10)
+  - WireGuard CT → **10.20.10.24** (VLAN 10)
+  - Home Assistant → **10.20.20.20** (VLAN 20 / IoT)
+- OPNsense DHCP: set **Option 6** to Pi-hole IP.
+- Open **UDP 51820** on OPNsense and restrict `WG_NET (10.6.0.0/24)`.
+- Consider migrating HA from Pi via full backup; attach USB radios to VM.
+- Add runbooks to repo (Plex, Vaultwarden) when you’re ready; hold off to save RAM.
+
+## Quick Wins
+- Add one mobile peer in WGDashboard and test handshake + DNS via Pi-hole.
+- Snapshot Pi-hole, WireGuard CTs, and HA VM baselines in Proxmox.
