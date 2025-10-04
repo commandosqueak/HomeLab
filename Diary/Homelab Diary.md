@@ -136,3 +136,45 @@
 ## Quick Wins
 - Add one mobile peer in WGDashboard and test handshake + DNS via Pi-hole.
 - Snapshot Pi-hole, WireGuard CTs, and HA VM baselines in Proxmox.
+
+# 🗓️ Daily Diary — 2025-10-05
+
+## Summary
+Big win. Reinstalled Proxmox cleanly, reattached VM storage, restored configs, and verified all core services. Lab is back online.
+
+## What I did
+- Reinstalled **Proxmox VE 8 (bookworm)** on NVMe boot disk.
+- Mounted 1TB **VM-Storage** (`/mnt/pve/VM-Storage`) and made it persistent via `/etc/fstab`.
+- Verified backups present: `pve-configs.tgz`, `host-scripts.tgz`, `cron*/`, `etc-ssl/`.
+- Restored configs:
+  - Extracted `pve-configs.tgz` → copied into node paths under `/etc/pve/nodes/<hostname>/{qemu-server,lxc}`.
+  - Restarted `pve-cluster`, `pvedaemon`, `pveproxy`.
+- Brought guests up, one-by-one, confirmed dashboards load:
+  - **Apps VM (Docker)** — Heimdall, Portainer, Linkding, Homebox, LanguageTool, Uptime Kuma, DuckDNS ✔︎
+  - **Home Assistant VM** ✔︎
+  - **Pi-hole LXC** ✔︎
+  - **WireGuard LXC** (WGDashboard accessible) ✔︎
+- Wrote/added runbooks & cheat sheets:
+  - `proxmox-clean-reinstall.md`
+  - `proxmox-restore.md`
+  - `restore-configs.md`
+  - `fstab-recovery.md`
+  - `disaster-recovery-lessons.md`
+
+## Issues / Notes
+- SSH/SCP timeouts earlier—bypassed by placing backups on the VM-Storage disk.
+- Proxmox service reload took a while; resolved after proper config placement + restart.
+- NVIDIA drivers postponed to avoid dependency hell until base is stable.
+
+## Next actions (short-term)
+- Install **NVIDIA drivers** for Plex HW transcoding (tomorrow).
+- Confirm static DHCP reservations for: Proxmox, Apps VM, Pi-hole, WG, HA.
+- Snapshot each VM/LXC now that they’re healthy.
+
+## Next actions (mid-term)
+- OPNsense build when the new NIC arrives (initially flat LAN; VLANs later with managed switch & AP).
+- Consider **PBS + offsite backups**.
+- Add **Watchtower** for container updates and finalize maintenance script cadence.
+
+## Mood / Energy
+- Tired but relieved. Ruby approved (eventually). 🐾
