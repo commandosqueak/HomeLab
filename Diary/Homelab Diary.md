@@ -164,10 +164,9 @@ Big win. Reinstalled Proxmox cleanly, reattached VM storage, restored configs, a
 ## Issues / Notes
 - SSH/SCP timeouts earlier—bypassed by placing backups on the VM-Storage disk.
 - Proxmox service reload took a while; resolved after proper config placement + restart.
-- NVIDIA drivers postponed to avoid dependency hell until base is stable.
+- NVIDIA drivers abandoned, will install Plex bare metal instead
 
 ## Next actions (short-term)
-- Install **NVIDIA drivers** for Plex HW transcoding (tomorrow).
 - Confirm static DHCP reservations for: Proxmox, Apps VM, Pi-hole, WG, HA.
 - Snapshot each VM/LXC now that they’re healthy.
 
