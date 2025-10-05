@@ -178,3 +178,155 @@ Big win. Reinstalled Proxmox cleanly, reattached VM storage, restored configs, a
 
 ## Mood / Energy
 - Tired but relieved. Ruby approved (eventually). 🐾
+
+
+# Rebuild Diary — Proxmox & OPNsense Bring‑Up
+_Date: 2025-10-05 19:45:36_
+
+## TL;DR
+- **Fresh PVE install (Debian 13 / Proxmox Kernel 6.14.11-3-pve)** on M.2 system disk.
+- **VM-Storage (ext4) mounted persistently** via `/etc/fstab` using UUID `d895a34f-621c-41f7-97f6-a1202124fbf0` → `/mnt/pve/VM-Storage`.
+- **Configs restored** (QEMU/LXC + basic network), then **storage re-added in PVE**.
+- All previous **VMs/CTs back up**.
+- Installed new **2.5GbE NIC** (interface `ens2`) and created **vmbr1** for WAN.
+- **OPNsense VM (ID 300)** installed from the VGA **.img** (not ISO), LAN: `192.168.8.10/24` (vtnet0 on `vmbr0`), WAN: vtnet1 on `vmbr1` (no carrier yet).
+- Created a **compressed raw snapshot** of the PVE root LV after OPNsense install:
+  - `/mnt/pve/VM-Storage/snapshots/root-post-opnsense.gz` (≈3.4 GiB)
+  - `sha256: 3d2df3746cc61eff572d0b34501de4611576b7d616f3c2db81c1a192515318ee`
+- **Open items:** bring WAN link up (connect/bridge to internet), finish OPNsense wizard, test outbound.
+
+---
+
+## System facts
+- **Hostname:** `proxmox`
+- **PVE IP:** `192.168.8.2/24` on **vmbr0** (bridged to `enp4s0`)
+- **NICs:** `enp4s0` (1 GbE), `ens2` (2.5 GbE)
+- **Bridges:**
+  - `vmbr0` ↔ `enp4s0` (LAN / management)
+  - `vmbr1` ↔ `ens2` (WAN for OPNsense)
+- **Storage:** `/mnt/pve/VM-Storage` (ext4) — contains `images/`, `template/iso/`, `pve-backups/`, `snapshots/`, etc.
+
+---
+
+## What we did — timeline
+1. **Confirmed backups present** on `VM-Storage:/pve-backups` (cron/, etc-ssl/, `pve-configs.tgz`, `host-scripts.tgz`).  
+2. **Reinstalled PVE** (Debian 13/trixie base, Proxmox kernel 6.14.11-3-pve).  
+3. **Mounted VM datastore** persistently:
+   - Added to `/etc/fstab`:
+     ```
+     UUID=d895a34f-621c-41f7-97f6-a1202124fbf0  /mnt/pve/VM-Storage  ext4  defaults  0  2
+     ```
+   - `systemctl daemon-reload && mount -a` → verified content.  
+4. **Restored platform configs:**
+   - Extracted `pve-configs.tgz` into `/pve-backup/` then copied back:
+     - `/pve-backup/qemu/*.conf` → `/etc/pve/qemu-server/`
+     - `/pve-backup/lxc/*.conf`  → `/etc/pve/lxc/`
+     - `/pve-backup/sys/storage.cfg` → `/etc/pve/storage.cfg` (also re-added manually later)
+     - (Hosts/interfaces reviewed; PVE services restarted)
+   - Restarted: `pveproxy`, `pvedaemon`, `pve-cluster`.  
+5. **Re-added storage “VM-Storage”** (we initially forgot which blocked VM starts):
+   - `pvesm add dir VM-Storage /mnt/pve/VM-Storage`  
+   - Afterwards **all VMs/CTs started OK**.  
+6. **Created safety snapshots:**
+   - LVM snapshots of root (pre‑experiments).  
+   - Later took a **raw dd snapshot** after OPNsense install (see _Backups_ below).  
+7. **Installed new 2.5GbE NIC** → appeared as `ens2`.  
+8. **Configured `vmbr1`** for WAN:
+   ```
+   auto vmbr1
+   iface vmbr1 inet manual
+       bridge-ports ens2
+       bridge-stp off
+       bridge-fd 0
+   ```
+   - Restarted networking; verified with `brctl show`:
+     - `vmbr0: enp4s0 (+ tap* for VMs)`
+     - `vmbr1: ens2 (+ tap300i1 for WAN)`  
+9. **Built OPNsense VM (ID 300):**
+   - **Disks:** `scsi0` 32 GiB (qcow2) on `VM-Storage`.
+   - **Networks:** `net0` virtio on `vmbr0` (LAN), `net1` virtio on `vmbr1` (WAN).
+   - **Media:** Upload **OPNsense-25.7-vga-amd64.img** to `local:iso/` and **import as a disk**:
+     ```bash
+     qm importdisk 300 /var/lib/vz/template/iso/OPNsense-25.7-vga-amd64.img VM-Storage --format raw
+     qm set 300 --scsi1 VM-Storage:300/vm-300-disk-1.raw
+     qm set 300 --boot order=scsi1
+     ```
+   - **Install:** ZFS (single‑disk), accepted 8 GiB swap, set root password, rebooted.
+   - **Switch boot back to system disk** and detach installer disk:
+     ```bash
+     qm set 300 --boot order=scsi0
+     qm set 300 --delete scsi1
+     ```
+   - **Result:** LAN `vtnet0` = `192.168.8.10/24`, WAN `vtnet1` = bridged to `vmbr1`.  
+   - **Web UI reachable** at `https://192.168.8.10` (after ensuring `tap300i0/1` attached to bridges).  
+10. **Wizard basics:** timezone Europe/London, dark mode, DNS 1.1.1.1/8.8.8.8 (no override by DHCP).  
+11. **WAN pending:** `ens2` currently **no carrier** (not cabled to an upstream that provides IP). **Ping to 8.8.8.8 fails** until WAN is wired/online.
+
+---
+
+## Backups & snapshots
+- **Post-OPNsense root image (compressed):**
+  - Path: `/mnt/pve/VM-Storage/snapshots/root-post-opnsense.gz`
+  - Size: ~3.4 GiB (from ~69 GiB raw read)
+  - Created with:
+    ```bash
+    dd if=/dev/pve/root | gzip -1 > /mnt/pve/VM-Storage/snapshots/root-post-opnsense.gz
+    sha256sum /mnt/pve/VM-Storage/snapshots/root-post-opnsense.gz
+    gzip -t /mnt/pve/VM-Storage/snapshots/root-post-opnsense.gz
+    ```
+  - SHA256: `3d2df3746cc61eff572d0b34501de4611576b7d616f3c2db81c1a192515318ee`
+- **LVM snapshots (earlier safety points):**
+  - `lvcreate -L2G -s -n root-pre-nvidia /dev/pve/root`
+  - `lvcreate -L2G -s -n root-pre-nvidia2 /dev/pve/root`
+
+> _Recommendation_: Keep the `.gz` snapshot **read‑only** and optionally replicate it to offline storage or the NAS for belt‑and‑braces.
+
+---
+
+## Current state
+- PVE up, VMs/CTs running as before.
+- OPNsense VM running; **LAN OK** at `192.168.8.10`.
+- WAN bridge configured (`vmbr1` ↔ `ens2`) but **no internet** yet (link down).
+
+---
+
+## Next steps (when you’re fresh)
+1. **Physically wire WAN (`ens2`)** to a live upstream:
+   - If double‑NAT behind your current router: plug `ens2` into a LAN port on router and set **WAN to DHCP**.
+   - If using a modem in bridge mode: connect modem → `ens2` and configure **PPPoE/static** as appropriate.
+2. In OPNsense:
+   - **Interfaces → WAN**: set IPv4 to **DHCP** (or PPPoE/static), IPv6 as needed.
+   - **System → Routing → Gateways**: verify a default gateway appears and is **Online**.
+   - **Firewall → NAT → Outbound**: start with **Automatic**.
+   - **Diagnostics → Ping**: test `8.8.8.8` and `opnsense.org`.
+3. **Protect backups**:
+   - `chattr +i /mnt/pve/VM-Storage/snapshots/root-post-opnsense.gz` (optional, if filesystem supports it).
+   - Copy snapshot to second location/NAS.
+4. **Housekeeping**:
+   - Tag VM 300 “OPNsense” with note `LAN: 192.168.8.10/24 (vmbr0), WAN: vmbr1`.
+   - Consider enabling Proxmox **backups** to a `dump/` schedule for OPNsense.
+
+---
+
+## Handy references
+- **PVE Bridges:**
+  ```bash
+  brctl show
+  # vmbr0: enp4s0, tap... (LAN)
+  # vmbr1: ens2, tap300i1 (WAN)
+  ```
+- **Interfaces (short):**
+  ```bash
+  ip -br addr
+  ethtool ens2   # expect "Link detected: yes" when cabled
+  ```
+- **OPNsense VM ID:** `300`
+- **LAN access:** `https://192.168.8.10`
+
+---
+
+## Notes
+- We explicitly avoided NVIDIA driver shenanigans today; Plex HW transcode plan moved to a different host to keep PVE stable.
+- Ruby supervised multiple times 🐾 — purr‑powered ops were successful.
+
+— End of entry —
