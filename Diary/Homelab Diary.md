@@ -328,4 +328,122 @@ _Date: 2025-10-05 19:45:36_
 - We explicitly avoided NVIDIA driver shenanigans today; Plex HW transcode plan moved to a different host to keep PVE stable.
 - Ruby supervised multiple times 🐾 — purr‑powered ops were successful.
 
-— End of entry —
+# 2025-10-06 — Rebuild, OPNsense VM online, and alerting set up
+
+## TL;DR
+- Fully reinstalled **Proxmox VE** on the M.2 SSD and restored configuration from the SATA SSD.
+- Re-mounted `VM-Storage`, re-added it as a PVE storage, and all VMs/LXCs booted.
+- Created **protected snapshots** (LVM + raw dd image) so we can roll back fast.
+- Installed a new **2.5 GbE NIC**, bridged it as `vmbr1`, and brought up an **OPNsense** VM with working LAN/WAN vtnet NICs.
+- Fixed **PVE Firewall** rules and enabled **email alerts** (Postfix → Gmail), **SMART** and **ZFS ZED** notifications.
+- Enabled **SSH keys** + **TOTP** for `root@pam` and `ellie@pam`.
+
+---
+
+## What we did (chronological highlights)
+
+### 1) Fresh Proxmox install & base checks
+- Installed PVE (Debian 13 / kernel `6.14.11-3-pve`) on the M.2 (system) disk.
+- Verified host networking: `vmbr0` on `192.168.8.2/24`.
+
+### 2) Mount the VM data disk and persist it
+- Confirmed UUID of the SATA SSD (VM datastore):  
+  `UUID="d895a34f-621c-41f7-97f6-a1202124fbf0" (ext4)`
+- Added to `/etc/fstab` and mounted at `/mnt/pve/VM-Storage`.
+- Verified content (backups, images, etc.) is present after reboot.
+
+### 3) Restore Proxmox configs
+- Extracted `pve-configs.tgz` and copied into place:
+  - `/etc/pve/storage.cfg`
+  - `/etc/network/interfaces` (careful merge)
+  - `/etc/hosts` (FQDN `proxmox.home.lab`)
+  - VM/CT configs into `/etc/pve/qemu-server/` and `/etc/pve/lxc/`
+- Restarted key services (`pveproxy`, `pvedaemon`, `pve-cluster`) and validated the GUI.
+- **Storage**: Re-added `VM-Storage` (Directory, path `/mnt/pve/VM-Storage`, content `Disk image, ISO, VZDump, Snippets`).
+
+### 4) Snapshots / rollbacks
+- LVM snapshots on root:
+  - `lvcreate -L2G -s -n root-pre-nvidia /dev/pve/root` (kept for history)
+  - `lvcreate -L2G -s -n root-post-opnsense /dev/pve/root`
+- Immutable raw backup image:
+  - `dd if=/dev/pve/root | gzip -1 > /mnt/pve/VM-Storage/snapshots/root-post-opnsense.gz`
+  - Verified with `gzip -t` and `sha256sum`.
+
+### 5) New NIC install & bridges
+- Confirmed new NIC as `ens2`.
+- Created `vmbr1` bridged to `ens2` (no IP on host):
+  ```text
+  auto vmbr1
+  iface vmbr1 inet manual
+      bridge-ports ens2
+      bridge-stp off
+      bridge-fd 0
+  ```
+- Verified bridges & tap attachments with `brctl show`.
+
+### 6) OPNsense VM creation & install
+- Uploaded OPNsense installer image to `local` storage (`/var/lib/vz/template/iso`).
+- Created VM **300**:
+  - CPU `host`, 2 vCPU, 4 GiB RAM
+  - Disks on `VM-Storage` (virtio-scsi)
+  - `net0` → `vmbr0` (LAN), `net1` → `vmbr1` (WAN)
+- Installed OPNsense (ZFS + 8 GiB swap), set **LAN IP 192.168.8.10/24**, WAN on vmbr1.
+- Removed installer ISO and set boot order → disk.
+- **Fix that made the Web UI appear**: ensured both VM NICs are attached to the correct bridges *and* the `vmbr1` bridge carried the physical `ens2`. After that, the GUI was reachable on `https://192.168.8.10`.
+
+### 7) Email alerts & notifications
+- Outbound mail via Gmail SMTP (Postfix SASL) — fixed credentials & tested.
+- Set `root@pam` email:
+  ```bash
+  pveum user modify root@pam --email "eleanormhathaway@gmail.com"
+  ```
+- Datacenter → Notifications:
+  - Target: Sendmail → recipient = your Gmail.
+  - Matcher: severity `warning,error` → target above.
+- `/etc/aliases` → `root: your.email@example.com` + `newaliases`.
+- **SMART**:
+  ```bash
+  apt install -y smartmontools
+  # DEVICESCAN with -m your email -M daily
+  systemctl enable --now smartd
+  ```
+- **ZFS ZED** (if/when ZFS used):
+  - `ZED_EMAIL_ADDR="your.email@example.com"` → `systemctl enable --now zfs-zed`.
+
+### 8) Access & hardening
+- **SSH**: Key-based auth for `ellie` (ed25519), correct perms on `~/.ssh` + `authorized_keys`.
+- **2FA (TOTP)**: Enabled for `root@pam` and `ellie@pam` in GUI. Tested PVE login.
+- **PVE Firewall**:
+  - Fixed cluster rules to correct syntax (uppercase `ACCEPT`, correct section).
+  - Allowed 8006/tcp from admin subnet, 22/tcp for SSH, and ICMP.
+
+---
+
+## Working state at end of day
+- Proxmox host: ✅ up, GUI reachable on `https://192.168.8.2:8006`
+- VM datastore: ✅ mounted and configured as `VM-Storage`
+- VMs/LXCs: ✅ started and dashboards reachable
+- OPNsense VM (300): ✅ installed, LAN `192.168.8.10/24`, Web UI reachable
+- New 2.5 GbE NIC: ✅ bridged as `vmbr1` for OPNsense WAN
+- Email alerts: ✅ working (PVE notifications, SMART/ZED hooks in place)
+- SSH & MFA: ✅ keys + TOTP working for `root@pam` and `ellie@pam`
+- Rollback artifacts: ✅ LVM snapshot + 3.4 GiB gzipped raw image saved
+
+---
+
+## Notes & gotchas captured
+- If OPNsense GUI is unreachable after install, double-check:
+  - VM NIC → correct bridge mapping (`vmbr0` LAN, `vmbr1` WAN).
+  - `vmbr1` must actually include the physical `ens2`.
+  - Boot order set to disk (remove installer ISO).
+- PVE Firewall cluster rules require correct **section** and **syntax**; “accept” vs `ACCEPT` matters.
+- Avoid mixing Debian releases — pinning and repositories were corrected (stays on Bookworm for PVE 8).
+
+---
+
+## Next actions (planned for weekend)
+- Finish OPNsense bootstrap: WAN DHCP/static, LAN DHCP server, admin ACLs, DNS, NTP.
+- Cut-over plan & maintenance window (switching LAN to OPNsense, router changes).
+- Optional: import old VMware lab VMs later (via `qm importdisk`/conversion), when RAM allows.
+- Documentation tidy-up (folders for “Runbooks”, “Reference”, “Recovery”).
+
