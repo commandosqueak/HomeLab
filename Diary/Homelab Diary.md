@@ -447,3 +447,40 @@ _Date: 2025-10-05 19:45:36_
 - Optional: import old VMware lab VMs later (via `qm importdisk`/conversion), when RAM allows.
 - Documentation tidy-up (folders for “Runbooks”, “Reference”, “Recovery”).
 
+## 📅 Thursday 9 Oct 2025 — Daily Log
+
+**Focus:** Hardware and camera troubleshooting while away  
+**Mood:** Tired but content — missing Ruby and ready for home  
+**Highlights:**
+- Checked in remotely on Blink cameras; confirmed indoor cams don’t use sync modules to avoid motion triggers.  
+- Troubleshot **cat cam** issues — power cycles didn’t help, decided on a factory reset when home.  
+- Planned potential switch from Blink to a **Frigate-compatible system** for better integration with HomeLab.  
+- Discussed adding this as part of **Phase 2** of the HomeLab build.  
+- Ended the night early, ready to head home the next day.  
+
+**Notes / Reflections:**  
+Good thinking about consolidating camera infrastructure under Frigate later — fewer cloud dependencies. Missing Ruby a lot tonight but looking forward to cuddles and sleep.
+
+---
+
+## 📅 Saturday 11 Oct 2025 — Daily Log
+
+**Focus:** Static IP audit and pre-cutover network prep  
+**Mood:** Sleepy start, but productive once moving  
+**Morning:**  
+- Delivery between **08:30–10:30** (injections), chilled in bed with YouTube.  
+- Reviewed Homelab IP plan and confirmed using **192.168.8.0/24** for Phase 1.  
+- Planned **Phase 2 VLANs** to move to `10.x.x.x/24` ranges later.  
+
+**Late Morning → Afternoon (10:30–14:00):**  
+- Created complete static IP allocation plan in Markdown (`LAN_Address_Plan_192.168.8.0-24.md`) with tags and device mapping.  
+- Included all current services: OPNsense, Proxmox, Pi-hole, Portainer, Kuma, HomeBox, Linkding, Heimdall, DuckDNS, Ollama, Vaultwarden, Plex, Ansible, phpIPAM, and home automation stack.  
+- Documented reserved DHCP and IoT ranges.  
+- Prepped everything for Sunday’s migration so that all devices can be mapped 1:1 back to the old router if needed.  
+
+**Evening:**  
+- Pain levels higher, so winding down early with meds, blanket, and SVU.  
+- Pushed updates to repo once notes and IP plan are committed.
+
+**Notes / Reflections:**  
+Solid day of groundwork. The detailed address map will make tomorrow’s OPNsense + Pi-hole migration painless. Excellent prep and documentation habits paying off.
